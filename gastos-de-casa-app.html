@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gastos de casa</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icono.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icono.svg">
+<meta name="theme-color" content="#1f6feb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gastos">
+<style>
+  /* Ajustes para celular */
+  @media (max-width: 600px) {
+    body { font-size: 18px; }
+    header { font-size: 22px; padding: 14px; }
+    h2 { font-size: 22px; }
+    .grilla { gap: 10px; }
+    .categoria { font-size: 16px; padding: 12px 4px; }
+    .categoria .icono { font-size: 38px; }
+    input { font-size: 22px; }
+    #monto { font-size: 28px; }
+    nav button { font-size: 13px; }
+    nav button .icono { font-size: 26px; }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    font-size: 20px;
+    background: #eef2f6;
+    color: #1d2630;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Barra superior */
+  header {
+    background: #1f6feb;
+    color: #fff;
+    padding: 16px;
+    text-align: center;
+    font-size: 26px;
+    font-weight: bold;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+
+  /* Contenido */
+  main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 14px 100px 14px;
+  }
+  .pantalla { display: none; }
+  .pantalla.activa { display: block; }
+
+  h2 { font-size: 26px; margin: 4px 0 14px 0; }
+  .aviso { font-size: 19px; color: #4a5561; margin: 10px 0; }
+  .vacio { text-align: center; color: #5a6470; font-size: 22px; padding: 30px 10px; }
+  .vacio .grande { font-size: 64px; display: block; margin-bottom: 10px; }
+
+  /* Tarjetas */
+  .tarjeta {
+    background: #fff;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+
+  /* Grilla de categorías con íconos */
+  .grilla {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .categoria {
+    background: #fff;
+    border: 3px solid transparent;
+    border-radius: 16px;
+    padding: 16px 8px;
+    text-align: center;
+    font-size: 19px;
+    font-family: inherit;
+    color: #1d2630;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    cursor: pointer;
+  }
+  .categoria .icono { display: block; font-size: 46px; margin-bottom: 6px; }
+  .categoria.elegida { border-color: #1f6feb; background: #e8f1ff; }
+
+  /* Campos */
+  label { display: block; margin: 14px 0 6px 0; font-weight: bold; font-size: 20px; }
+  input {
+    width: 100%;
+    font-size: 26px;
+    padding: 12px;
+    border: 2px solid #9aa5b1;
+    border-radius: 12px;
+    font-family: inherit;
+  }
+  #monto { font-size: 34px; font-weight: bold; text-align: right; }
+
+  /* Botones */
+  .boton {
+    display: block;
+    width: 100%;
+    font-size: 24px;
+    font-family: inherit;
+    font-weight: bold;
+    padding: 16px;
+    margin-top: 12px;
+    border: none;
+    border-radius: 14px;
+    background: #1f6feb;
+    color: #fff;
+    cursor: pointer;
+  }
+  .boton.secundario { background: #5a6470; }
+  .boton.peligro { background: #b42318; }
+  .boton.chico {
+    width: auto;
+    font-size: 18px;
+    padding: 8px 12px;
+    margin: 0;
+    background: #fff;
+    color: #b42318;
+    border: 2px solid #b42318;
+  }
+
+  /* Lista de gastos */
+  .gasto {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #e3e8ee;
+  }
+  .gasto:last-child { border-bottom: none; }
+  .gasto .icono-chico { font-size: 34px; }
+  .gasto .info { flex: 1; }
+  .gasto .cat { color: #5a6470; font-size: 17px; }
+  .gasto .monto { font-weight: bold; white-space: nowrap; font-size: 21px; }
+
+  /* Resumen */
+  .linea {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #e3e8ee;
+    font-size: 21px;
+  }
+  .linea .izq { display: flex; align-items: center; gap: 10px; }
+  .linea .icono-chico { font-size: 30px; }
+  .linea.total { font-weight: bold; font-size: 26px; border-bottom: none; padding-top: 16px; }
+
+  /* Alertas de saldo */
+  .alerta {
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 14px;
+    text-align: center;
+    font-weight: bold;
+  }
+  .alerta .titulo { display: block; font-size: 24px; }
+  .alerta .detalle { display: block; font-size: 19px; font-weight: normal; margin-top: 6px; }
+  .alerta.negativa {
+    background: #b42318;
+    color: #fff;
+    border: 3px solid #7a0f08;
+    animation: parpadeo 1.5s infinite;
+  }
+  .alerta.positiva {
+    background: #e6f4ea;
+    color: #137333;
+    border: 2px solid #137333;
+  }
+  @keyframes parpadeo {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  /* Barra inferior de navegación */
+  nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    background: #fff;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.15);
+  }
+  nav button {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 10px 2px 12px 2px;
+    font-family: inherit;
+    font-size: 15px;
+    color: #5a6470;
+    cursor: pointer;
+  }
+  nav button .icono { display: block; font-size: 30px; }
+  nav button.activa { color: #1f6feb; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<header>💰 Gastos de casa</header>
+
+<main>
+
+  <!-- ANOTAR -->
+  <section id="pantalla-anotar" class="pantalla activa">
+    <div id="alerta-anotar"></div>
+    <h2>¿Qué compraste?</h2>
+    <div class="grilla" id="grilla-categorias"></div>
+
+    <div class="tarjeta" style="margin-top:18px;">
+      <label for="monto">Monto ($)</label>
+      <input type="number" id="monto" inputmode="decimal" min="0" step="0.01" placeholder="0">
+
+      <label for="fecha">Fecha</label>
+      <input type="date" id="fecha">
+
+      <label for="detalle">Detalle (opcional)</label>
+      <input type="text" id="detalle" placeholder="Ej: aceite y harina">
+
+      <button class="boton" onclick="guardarGasto()">💾 GUARDAR GASTO</button>
+      <div id="mensaje" class="aviso"></div>
+    </div>
+  </section>
+
+  <!-- VER GASTOS -->
+  <section id="pantalla-ver" class="pantalla">
+    <h2>Gastos de este mes</h2>
+    <div class="tarjeta" id="lista-gastos"></div>
+  </section>
+
+  <!-- RESUMEN -->
+  <section id="pantalla-resumen" class="pantalla">
+    <h2>Resumen del mes</h2>
+    <div class="tarjeta">
+      <label for="mes-resumen">📅 Elegir mes</label>
+      <input type="month" id="mes-resumen" onchange="mostrarResumen()">
+    </div>
+    <div class="tarjeta">
+      <label for="ingresos-mes">💵 Ingresos de este mes ($)</label>
+      <input type="number" id="ingresos-mes" inputmode="decimal" min="0" step="0.01" placeholder="Ej: 350000">
+      <button class="boton" onclick="guardarIngresoMes()">💾 GUARDAR INGRESOS</button>
+      <div id="mensaje-ingresos" class="aviso"></div>
+    </div>
+    <div class="tarjeta" id="contenido-resumen"></div>
+  </section>
+
+  <!-- COPIA -->
+  <section id="pantalla-copia" class="pantalla">
+    <h2>Copia de seguridad</h2>
+    <div class="tarjeta">
+      <p class="aviso">Guardá una copia una vez por semana, en un pendrive o una carpeta segura.</p>
+      <button class="boton" onclick="exportarDatos()">📤 GUARDAR COPIA</button>
+      <button class="boton secundario" onclick="document.getElementById('archivo-importar').click()">📥 CARGAR COPIA GUARDADA</button>
+      <input type="file" id="archivo-importar" accept=".json" style="display:none" onchange="importarDatos(event)">
+    </div>
+    <div class="tarjeta">
+      <p class="aviso">Esto borra todos los gastos de la netbook.</p>
+      <button class="boton peligro" onclick="borrarTodo()">🗑️ BORRAR TODO</button>
+    </div>
+  </section>
+
+</main>
+
+<nav>
+  <button id="btn-anotar" class="activa" onclick="mostrar('anotar')"><span class="icono">➕</span>Anotar</button>
+  <button id="btn-ver" onclick="mostrar('ver')"><span class="icono">📋</span>Gastos</button>
+  <button id="btn-resumen" onclick="mostrar('resumen')"><span class="icono">📊</span>Resumen</button>
+  <button id="btn-copia" onclick="mostrar('copia')"><span class="icono">💾</span>Copia</button>
+</nav>
+
+<script>
+  const CLAVE = "gastosCasa_v1";
+  const CLAVE_INGRESOS = "gastosCasa_ingresos";
+
+  // Categorías con ícono
+  const CATEGORIAS = [
+    { nombre: "Almacén", icono: "🛒" },
+    { nombre: "Verdulería y carnicería", icono: "🥦" },
+    { nombre: "Farmacia y salud", icono: "💊" },
+    { nombre: "Luz", icono: "💡" },
+    { nombre: "Gas", icono: "🔥" },
+    { nombre: "Agua", icono: "💧" },
+    { nombre: "Internet y teléfono", icono: "📶" },
+    { nombre: "Expensas e impuestos", icono: "🏢" },
+    { nombre: "Transporte", icono: "🚌" },
+    { nombre: "Otros", icono: "📦" }
+  ];
+
+  let categoriaElegida = null;
+
+  function iconoDe(nombre) {
+    const c = CATEGORIAS.find(x => x.nombre === nombre);
+    return c ? c.icono : "📦";
+  }
+
+  function cargarGastos() {
+    try { return JSON.parse(localStorage.getItem(CLAVE)) || []; }
+    catch (e) { return []; }
+  }
+
+  function guardarTodo(lista) {
+    localStorage.setItem(CLAVE, JSON.stringify(lista));
+  }
+
+  function formatoPesos(n) {
+    return "$ " + Number(n).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function hoyISO() {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+  }
+
+  function mesActual() { return hoyISO().slice(0, 7); }
+
+  function formatearFecha(iso) {
+    const [a, m, d] = iso.split("-");
+    return d + "/" + m + "/" + a;
+  }
+
+  function escapar(texto) {
+    const div = document.createElement("div");
+    div.textContent = texto;
+    return div.innerHTML;
+  }
+
+  // Ingresos y saldo
+  function cargarIngresos() {
+    try { return JSON.parse(localStorage.getItem(CLAVE_INGRESOS)) || {}; }
+    catch (e) { return {}; }
+  }
+
+  function guardarIngresos(obj) {
+    localStorage.setItem(CLAVE_INGRESOS, JSON.stringify(obj));
+  }
+
+  function guardarIngresoMes() {
+    const mes = document.getElementById("mes-resumen").value || mesActual();
+    const valor = parseFloat(document.getElementById("ingresos-mes").value);
+    const aviso = document.getElementById("mensaje-ingresos");
+    if (isNaN(valor) || valor < 0) { aviso.textContent = "⚠️ Escribí el monto de ingresos."; return; }
+    const ingresos = cargarIngresos();
+    ingresos[mes] = valor;
+    guardarIngresos(ingresos);
+    aviso.textContent = "✅ Ingresos guardados.";
+    mostrarResumen();
+    renderAlertaAnotar();
+  }
+
+  function bloqueSaldo(mes) {
+    const ingresos = cargarIngresos()[mes];
+    if (ingresos === undefined || ingresos <= 0) return "";
+    const gastos = cargarGastos()
+      .filter(g => g.fecha.startsWith(mes))
+      .reduce((suma, g) => suma + g.monto, 0);
+    const saldo = ingresos - gastos;
+
+    if (saldo < 0) {
+      return `<div class="alerta negativa">
+        <span class="titulo">⚠️ ¡ATENCIÓN! GASTASTE MÁS DE LO QUE ENTRÓ</span>
+        <span class="detalle">Te faltan ${formatoPesos(-saldo)} para cubrir los gastos de este mes.</span>
+      </div>`;
+    }
+    return `<div class="alerta positiva">
+      <span class="titulo">✅ Te sobran ${formatoPesos(saldo)}</span>
+      <span class="detalle">Ingresos ${formatoPesos(ingresos)} − Gastos ${formatoPesos(gastos)}</span>
+    </div>`;
+  }
+
+  function renderAlertaAnotar() {
+    document.getElementById("alerta-anotar").innerHTML = bloqueSaldo(mesActual());
+  }
+
+  // Navegación
+  function mostrar(pantalla) {
+    ["anotar", "ver", "resumen", "copia"].forEach(p => {
+      document.getElementById("pantalla-" + p).classList.remove("activa");
+      document.getElementById("btn-" + p).classList.remove("activa");
+    });
+    document.getElementById("pantalla-" + pantalla).classList.add("activa");
+    document.getElementById("btn-" + pantalla).classList.add("activa");
+    document.querySelector("main").scrollTop = 0;
+    if (pantalla === "ver") mostrarLista();
+    if (pantalla === "resumen") mostrarResumen();
+    if (pantalla === "anotar") renderAlertaAnotar();
+  }
+
+  // Grilla de categorías
+  function armarGrilla() {
+    const cont = document.getElementById("grilla-categorias");
+    cont.innerHTML = CATEGORIAS.map((c, i) => `
+      <button class="categoria" id="cat-${i}" onclick="elegirCategoria(${i})">
+        <span class="icono">${c.icono}</span>${c.nombre}
+      </button>`).join("");
+  }
+
+  function elegirCategoria(i) {
+    categoriaElegida = CATEGORIAS[i].nombre;
+    CATEGORIAS.forEach((_, j) => {
+      document.getElementById("cat-" + j).classList.toggle("elegida", j === i);
+    });
+    document.getElementById("mensaje").textContent = "";
+    document.getElementById("monto").focus();
+  }
+
+  // Guardar
+  function guardarGasto() {
+    const aviso = document.getElementById("mensaje");
+    const monto = parseFloat(document.getElementById("monto").value);
+    const fecha = document.getElementById("fecha").value;
+    const detalle = document.getElementById("detalle").value.trim();
+
+    if (!categoriaElegida) { aviso.textContent = "⚠️ Primero tocá una categoría."; return; }
+    if (isNaN(monto) || monto <= 0) { aviso.textContent = "⚠️ Escribí un monto mayor que cero."; return; }
+    if (!fecha) { aviso.textContent = "⚠️ Falta la fecha."; return; }
+
+    const lista = cargarGastos();
+    lista.push({ id: Date.now(), fecha, categoria: categoriaElegida, monto, detalle });
+    guardarTodo(lista);
+
+    aviso.textContent = "✅ Guardado: " + formatoPesos(monto) + " en " + categoriaElegida + ".";
+    document.getElementById("monto").value = "";
+    document.getElementById("detalle").value = "";
+    categoriaElegida = null;
+    CATEGORIAS.forEach((_, j) => document.getElementById("cat-" + j).classList.remove("elegida"));
+    renderAlertaAnotar();
+  }
+
+  // Lista del mes
+  function mostrarLista() {
+    const cont = document.getElementById("lista-gastos");
+    const lista = cargarGastos()
+      .filter(g => g.fecha.startsWith(mesActual()))
+      .sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+    if (lista.length === 0) {
+      cont.innerHTML = `<div class="vacio"><span class="grande">📭</span>Todavía no anotaste gastos este mes.</div>`;
+      return;
+    }
+
+    cont.innerHTML = lista.map(g => `
+      <div class="gasto">
+        <span class="icono-chico">${iconoDe(g.categoria)}</span>
+        <div class="info">
+          <div>${escapar(g.categoria)}${g.detalle ? " – " + escapar(g.detalle) : ""}</div>
+          <div class="cat">📅 ${formatearFecha(g.fecha)}</div>
+        </div>
+        <div class="monto">${formatoPesos(g.monto)}</div>
+        <button class="boton chico" onclick="borrarGasto(${g.id})">Borrar</button>
+      </div>`).join("");
+  }
+
+  function borrarGasto(id) {
+    if (!confirm("¿Borrar este gasto?")) return;
+    guardarTodo(cargarGastos().filter(g => g.id !== id));
+    mostrarLista();
+  }
+
+  // Resumen
+  function mostrarResumen() {
+    const selector = document.getElementById("mes-resumen");
+    if (!selector.value) selector.value = mesActual();
+    const mes = selector.value;
+    const cont = document.getElementById("contenido-resumen");
+    const ingresoGuardado = cargarIngresos()[mes];
+    document.getElementById("ingresos-mes").value = ingresoGuardado !== undefined ? ingresoGuardado : "";
+    const bloque = bloqueSaldo(mes);
+
+    const delMes = cargarGastos().filter(g => g.fecha.startsWith(mes));
+    if (delMes.length === 0) {
+      cont.innerHTML = bloque + `<div class="vacio"><span class="grande">📭</span>No hay gastos en ese mes.</div>`;
+      return;
+    }
+
+    const porCat = {};
+    let total = 0;
+    delMes.forEach(g => {
+      porCat[g.categoria] = (porCat[g.categoria] || 0) + g.monto;
+      total += g.monto;
+    });
+
+    const filas = Object.entries(porCat)
+      .sort((a, b) => b[1] - a[1])
+      .map(([cat, monto]) => `
+        <div class="linea">
+          <span class="izq"><span class="icono-chico">${iconoDe(cat)}</span>${escapar(cat)}</span>
+          <span>${formatoPesos(monto)}</span>
+        </div>`).join("");
+
+    cont.innerHTML = bloque + filas + `
+      <div class="linea total">
+        <span>💰 TOTAL</span>
+        <span>${formatoPesos(total)}</span>
+      </div>
+      <p class="aviso">Gastos anotados: ${delMes.length}</p>`;
+  }
+
+  // Copia de seguridad
+  function exportarDatos() {
+    const datos = JSON.stringify({ gastos: cargarGastos(), ingresos: cargarIngresos() }, null, 2);
+    const blob = new Blob([datos], { type: "application/json" });
+    const enlace = document.createElement("a");
+    enlace.href = URL.createObjectURL(blob);
+    enlace.download = "copia-gastos-" + hoyISO() + ".json";
+    enlace.click();
+    URL.revokeObjectURL(enlace.href);
+  }
+
+  function importarDatos(evento) {
+    const archivo = evento.target.files[0];
+    if (!archivo) return;
+    const lector = new FileReader();
+    lector.onload = function (e) {
+      try {
+        const datos = JSON.parse(e.target.result);
+        let gastos, ingresos = {};
+        if (Array.isArray(datos)) {
+          gastos = datos;
+        } else if (datos && Array.isArray(datos.gastos)) {
+          gastos = datos.gastos;
+          ingresos = datos.ingresos || {};
+        } else {
+          throw new Error();
+        }
+        if (!confirm("¿Reemplazar los datos actuales con esta copia?")) return;
+        guardarTodo(gastos);
+        guardarIngresos(ingresos);
+        alert("Copia cargada correctamente.");
+        mostrar("ver");
+      } catch (err) {
+        alert("Ese archivo no es una copia válida.");
+      }
+    };
+    lector.readAsText(archivo);
+    evento.target.value = "";
+  }
+
+  function borrarTodo() {
+    if (!confirm("¿Seguro que querés borrar TODOS los gastos?")) return;
+    if (!confirm("No se puede deshacer. ¿Confirmás?")) return;
+    localStorage.removeItem(CLAVE);
+    localStorage.removeItem(CLAVE_INGRESOS);
+    alert("Datos borrados.");
+    mostrar("anotar");
+  }
+
+  // Inicio
+  armarGrilla();
+  document.getElementById("fecha").value = hoyISO();
+  renderAlertaAnotar();
+</script>
+
+</body>
+</html>
